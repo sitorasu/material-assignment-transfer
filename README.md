@@ -1,0 +1,2 @@
+# prefab-material-transfer
+prefabやGameObject間で同じ名前のメッシュのマテリアル割り当てを一括でコピーするツール
