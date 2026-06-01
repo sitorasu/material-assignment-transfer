@@ -1,201 +1,286 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
-public class MaterialAssignmentTransferWindow : EditorWindow
+namespace System.Runtime.CompilerServices
 {
-    // 選択するプレハブ（アセット）
-    private GameObject prefab;
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static class IsExternalInit
+    {
+    }
+}
 
-    // マテリアルを適用するターゲット（シーン上の GameObject）
-    private GameObject targetObject;
-
-    // 適用先マテリアルインデックスの決定方式
-    private enum MaterialIndexMapPolicy
+namespace Sitorasu.MaterialAssignmentTransfer
+{
+    enum MaterialSlotMapPolicy
     {
         ByIndex,
         BySubMeshVertexCount
     }
-    private MaterialIndexMapPolicy policy;
 
-    [MenuItem("Tools/Material Assignment Transfer")]
-    private static void ShowWindow()
+    record TransferDescription(Renderer Source, Renderer Target, int[] MaterialSlotMap);
+
+    class MaterialAssignmentTransfer
     {
-        var window = GetWindow<MaterialAssignmentTransferWindow>();
-        window.titleContent = new GUIContent("Material Assignment Transfer");
-        window.Show();
-    }
-
-    private void OnGUI()
-    {
-        EditorGUILayout.LabelField("Prefab からマテリアルをコピーして適用します。", EditorStyles.wordWrappedLabel);
-        EditorGUILayout.Space();
-
-        prefab = (GameObject)EditorGUILayout.ObjectField(
-            "Prefab",
-            prefab,
-            typeof(GameObject),
-            false // Prefab アセットを想定
-        );
-
-        targetObject = (GameObject)EditorGUILayout.ObjectField(
-            "ターゲット GameObject",
-            targetObject,
-            typeof(GameObject),
-            true // シーン上オブジェクトを想定
-        );
-        if (targetObject != null && !targetObject.scene.IsValid())
+        private GameObject _source;
+        public GameObject Source
         {
-            EditorGUILayout.HelpBox("ターゲットにはシーン上のオブジェクトを指定してください", MessageType.Error);
-        }
-        EditorGUILayout.Space();
-
-        EditorGUILayout.LabelField("適用先マテリアルインデックスの決定方式", EditorStyles.wordWrappedLabel);
-        policy = (MaterialIndexMapPolicy)GUILayout.Toolbar((int)policy, new[] { "インデックス", "サブメッシュの頂点数" }, EditorStyles.radioButton);
-        EditorGUILayout.Space();
-
-        EditorGUI.BeginDisabledGroup(prefab == null || targetObject == null || !targetObject.scene.IsValid());
-        if (GUILayout.Button("適用"))
-        {
-            ApplyMaterials(policy);
-        }
-        EditorGUI.EndDisabledGroup();
-    }
-
-    private Material[] GetMaterialsReorderedBySubMeshVertexCount(SkinnedMeshRenderer prefabRenderer, SkinnedMeshRenderer targetRenderer)
-    {
-        // Prefab側のメッシュのマテリアルをサブメッシュの頂点数でソートする
-        var subMeshCount = prefabRenderer.sharedMesh.subMeshCount;
-        var prefabSubMeshVertexCounts = Enumerable.Range(0, subMeshCount).Select(i => prefabRenderer.sharedMesh.GetSubMesh(i).vertexCount).ToArray();
-        var sortedPrefabMats = prefabRenderer.sharedMaterials;
-        Array.Sort(prefabSubMeshVertexCounts, sortedPrefabMats);
-
-        // ターゲット側のメッシュのサブメッシュが、頂点数でソートしたときに何番目になるのか計算する
-        var targetSubMeshVertexCounts = Enumerable.Range(0, subMeshCount).Select(i => targetRenderer.sharedMesh.GetSubMesh(i).vertexCount).ToArray(); 
-        var targetOriginalIndices = Enumerable.Range(0, subMeshCount).ToArray();
-        Array.Sort(targetSubMeshVertexCounts, targetOriginalIndices);
-        var targetSortedIndices = new int[subMeshCount];
-        for (int i = 0; i < subMeshCount; i++)
-        {
-            targetSortedIndices[targetOriginalIndices[i]] = i;
-        }
-
-        // ターゲット側のサブメッシュの頂点数の順位を基準にPrefab側のマテリアルを並び替えて返す
-        var reorderedPrefabMats = Enumerable.Range(0, subMeshCount).Select(i => sortedPrefabMats[targetSortedIndices[i]]).ToArray();
-        return reorderedPrefabMats;
-    }
-
-    private void ApplyMaterials(MaterialIndexMapPolicy policy)
-    {
-        if (prefab == null || targetObject == null)
-        {
-            Debug.LogWarning("Prefab またはターゲット GameObject が設定されていません。");
-            return;
-        }
-
-        // Prefab 側の SkinnedMeshRenderer 一覧
-        var prefabRenderers = prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-        // ターゲット側の SkinnedMeshRenderer 一覧
-        var targetRenderers = targetObject.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-
-        // 名前で引けるように Dictionary 化
-        var prefabDict = new Dictionary<string, SkinnedMeshRenderer>();
-        var targetDict = new Dictionary<string, SkinnedMeshRenderer>();
-
-        foreach (var r in prefabRenderers)
-        {
-            if (!prefabDict.ContainsKey(r.name))
+            get => _source;
+            set
             {
-                prefabDict.Add(r.name, r);
+                if (_source != value)
+                {
+                    _source = value;
+                    UpdatePlan();
+                }
+            }
+        }
+
+        private GameObject _target;
+        public GameObject Target
+        {
+            get => _target;
+            set
+            {
+                if (_target != value)
+                {
+                    _target = value;
+                    UpdatePlan();
+                }
+            }
+        }
+
+        private MaterialSlotMapPolicy _policy = MaterialSlotMapPolicy.ByIndex;
+        public MaterialSlotMapPolicy Policy
+        {
+            get => _policy;
+            set
+            {
+                if (_policy != value)
+                {
+                    _policy = value;
+                    UpdatePlan();
+                }
+            }
+        }
+
+        private List<TransferDescription> _plan = new List<TransferDescription>();
+        public IReadOnlyCollection<TransferDescription> Plan
+        {
+            get => _plan;
+        }
+
+        private List<Renderer> _sourceNameConflictRenderers = new List<Renderer>();
+        private List<Renderer> _targetNameConflictRenderers = new List<Renderer>();
+        private List<Renderer> _targetMaterialCountMismatchRenderers = new List<Renderer>();
+
+        public bool IsInputValid()
+        {
+            return _source != null && _target != null && !EditorUtility.IsPersistent(_target);
+        }
+
+        public void Transfer()
+        {
+            if (!IsInputValid())
+            {
+                return;
+            }
+            Undo.IncrementCurrentGroup();
+            Undo.SetCurrentGroupName("Material Assignment Transfer");
+            int undoGroup = Undo.GetCurrentGroup();
+            foreach (var desc in _plan)
+            {
+                Undo.RecordObject(desc.Target, "Material Assignment Transfer");
+                var materialSlotNum = desc.MaterialSlotMap.Count();
+                var targetMaterials = new Material[materialSlotNum];
+                for (int i = 0; i < materialSlotNum; i++)
+                {
+                    targetMaterials[i] = desc.Source.sharedMaterials[desc.MaterialSlotMap[i]];
+                }
+                desc.Target.sharedMaterials = targetMaterials;
+            }
+            Undo.CollapseUndoOperations(undoGroup);
+            // EditorSceneManager.MarkSceneDirty(_target.scene);
+        }
+
+        private void UpdatePlan()
+        {
+            _plan.Clear();
+            _sourceNameConflictRenderers.Clear();
+            _targetNameConflictRenderers.Clear();
+            _targetMaterialCountMismatchRenderers.Clear();
+
+            if (!IsInputValid())
+            {
+                return;
+            }
+
+            var sourceRenderers = _source.GetComponentsInChildren<Renderer>(includeInactive: true);
+            var targetRenderers = _target.GetComponentsInChildren<Renderer>(includeInactive: true);
+            var sourceDictionary = new Dictionary<string, Renderer>();
+            var targetDictionary = new Dictionary<string, Renderer>();
+            foreach (var renderer in sourceRenderers)
+            {
+                if (!sourceDictionary.TryAdd(renderer.name, renderer))
+                {
+                    _sourceNameConflictRenderers.Add(renderer);
+                }
+            }
+            foreach (var renderer in targetRenderers)
+            {
+                if (!sourceDictionary.TryGetValue(renderer.name, out Renderer sourceRenderer))
+                {
+                    continue;
+                }
+                if (renderer.sharedMaterials.Count() != sourceRenderer.sharedMaterials.Count())
+                {
+                    _targetMaterialCountMismatchRenderers.Add(renderer);
+                    continue;
+                }
+                if (!targetDictionary.TryAdd(renderer.name, renderer))
+                {
+                    _targetNameConflictRenderers.Add(renderer);
+                }
+            }
+
+            foreach (var (sourceName, sourceRenderer) in sourceDictionary)
+            {
+                var targetRenderer = targetDictionary[sourceName];
+                int[] materialSlotMap = _policy switch
+                {
+                    MaterialSlotMapPolicy.ByIndex => Enumerable.Range(0, sourceRenderer.sharedMaterials.Count()).ToArray(),
+                    MaterialSlotMapPolicy.BySubMeshVertexCount => GenerateMaterialSlotMapBySubMeshVertexCount(sourceRenderer, targetRenderer),
+                    _ => null
+                };
+                Debug.Assert(materialSlotMap != null, "Unknown MaterialSlotPolicy");
+                _plan.Add(new TransferDescription(sourceRenderer, targetRenderer, materialSlotMap));
+            }
+        }
+
+        private int[] GenerateMaterialSlotMapBySubMeshVertexCount(Renderer source, Renderer target)
+        {
+            if (source is SkinnedMeshRenderer sourceSkinned && target is SkinnedMeshRenderer targetSkinned)
+            {
+                // ①ソース側のメッシュについて、サブメッシュの番号→頂点数の順位 の対応を計算
+                var subMeshCount = sourceSkinned.sharedMesh.subMeshCount;
+                var sourceSubMeshVertexCounts = Enumerable.Range(0, subMeshCount).Select(i => sourceSkinned.sharedMesh.GetSubMesh(i).vertexCount).ToArray();
+                var sourceIndexToRank = Enumerable.Range(0, subMeshCount).ToArray();
+                Array.Sort(sourceSubMeshVertexCounts, sourceIndexToRank);
+
+                // ②ターゲット側のメッシュについて、頂点数の順位→サブメッシュの番号 の対応を計算
+                Debug.Assert(subMeshCount == targetSkinned.sharedMesh.subMeshCount);
+                var targetSubMeshVertexCounts = Enumerable.Range(0, subMeshCount).Select(i => targetSkinned.sharedMesh.GetSubMesh(i).vertexCount).ToArray();
+                var targetIndexToRank = Enumerable.Range(0, subMeshCount).ToArray();
+                Array.Sort(targetSubMeshVertexCounts, targetIndexToRank);
+                var targetRankToIndex = new int[subMeshCount];
+                for (int i = 0; i < subMeshCount; i++)
+                {
+                    targetRankToIndex[targetIndexToRank[i]] = i;
+                }
+
+                // ①と②を合成
+                var materialSlotMap = Enumerable.Range(0, subMeshCount).Select(i => targetRankToIndex[sourceIndexToRank[i]]).ToArray();
+                return materialSlotMap;
             }
             else
             {
-                Debug.LogWarning($"Prefab 内に同じ名前のメッシュが複数あります: {r.name}");
+                return Enumerable.Range(0, source.sharedMaterials.Count()).ToArray();
             }
         }
+    }
 
-        foreach (var r in targetRenderers)
+    class MaterialAssignmentTransferWindow : EditorWindow
+    {
+        private MaterialAssignmentTransfer _transferer;
+
+        // ログのスクロール位置
+        private Vector2 _logScrollPosition;
+
+        [MenuItem("Tools/Material Assignment Transfer")]
+        private static void ShowWindow()
         {
-            if (!targetDict.ContainsKey(r.name))
-            {
-                targetDict.Add(r.name, r);
-            }
-            else
-            {
-                Debug.LogWarning($"ターゲット側に同じ名前のメッシュが複数あります: {r.name}");
-            }
+            GetWindow<MaterialAssignmentTransferWindow>("Material Assignment Transfer");
         }
 
-        int applyCount = 0;
-        int warnCount = 0;
-
-        // 1) Prefab 側の全メッシュについて、同名ターゲットにマテリアルをコピー
-        foreach (var kv in prefabDict)
+        private void OnEnable()
         {
-            string meshName = kv.Key;
-            var prefabRenderer = kv.Value;
+            _transferer = new MaterialAssignmentTransfer();
+        }
 
-            if (!targetDict.TryGetValue(meshName, out var targetRenderer))
+        private void OnGUI()
+        {
+            EditorGUIUtility.labelWidth = 60;
+            EditorGUILayout.LabelField("マテリアル割り当てをコピーします。", EditorStyles.wordWrappedLabel);
+            EditorGUILayout.Space();
+            _transferer.Source = (GameObject)EditorGUILayout.ObjectField(
+                label: "コピー元",
+                obj: _transferer.Source,
+                objType: typeof(GameObject),
+                allowSceneObjects: true
+            );
+            _transferer.Target = (GameObject)EditorGUILayout.ObjectField(
+                label: "ターゲット",
+                obj: _transferer.Target,
+                objType: typeof(GameObject),
+                allowSceneObjects: true
+            );
+
+            // ターゲットがprefabの場合はエラーを出す
+            if (_transferer.Target != null && EditorUtility.IsPersistent(_transferer.Target))
             {
-                Debug.LogWarning($"ターゲット側に同名のメッシュが見つかりません: {meshName}");
-                warnCount++;
-                continue;
+                EditorGUILayout.HelpBox("ターゲットにはシーン上のオブジェクトを指定してください", MessageType.Error);
             }
+            EditorGUILayout.Space();
 
-            var prefabMats = prefabRenderer.sharedMaterials;
-            var targetMats = targetRenderer.sharedMaterials;
+            EditorGUILayout.LabelField("マテリアルスロットの対応付け方式", EditorStyles.wordWrappedLabel);
+            _transferer.Policy = (MaterialSlotMapPolicy)GUILayout.Toolbar((int)_transferer.Policy, new[] { "番号", "サブメッシュの頂点数" }, EditorStyles.radioButton);
+            EditorGUILayout.Space();
 
-            if (prefabMats == null) prefabMats = new Material[0];
-            if (targetMats == null) targetMats = new Material[0];
-
-            if (prefabMats.Length != targetMats.Length)
+            EditorGUILayout.LabelField("実行計画", EditorStyles.wordWrappedLabel);
+            _logScrollPosition = EditorGUILayout.BeginScrollView(_logScrollPosition);
+            foreach (var item in _transferer.Plan)
             {
-                Debug.LogWarning(
-                    $"メッシュ '{meshName}' のマテリアル数が一致しません。" +
-                    $" Prefab: {prefabMats.Length}, ターゲット: {targetMats.Length}。このメッシュには何もしません。"
+                EditorGUILayout.ObjectField(
+                    obj: item.Target.gameObject,
+                    objType: typeof(GameObject),
+                    allowSceneObjects: true
                 );
-                warnCount++;
-                continue;
+                for (int i = 0; i < item.MaterialSlotMap.Count(); i++)
+                {
+                    var oldMaterial = item.Target.sharedMaterials[i];
+                    var newMaterial = item.Source.sharedMaterials[item.MaterialSlotMap[i]];
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField($"Slot {i}", GUILayout.Width(50));
+                    EditorGUILayout.ObjectField(
+                        obj: oldMaterial,
+                        objType: typeof(Material),
+                        allowSceneObjects: true
+                    );
+                    EditorGUILayout.LabelField("⇒", GUILayout.Width(20));
+                    EditorGUILayout.ObjectField(
+                        obj: newMaterial,
+                        objType: typeof(Material),
+                        allowSceneObjects: true
+                    );
+                    EditorGUILayout.EndHorizontal();
+                }
+                EditorGUILayout.Space();
             }
+            EditorGUILayout.EndScrollView();
+            EditorGUILayout.Space();
 
-            // Undo 対応
-            Undo.RecordObject(targetRenderer, "Apply Prefab Materials");
-
-            targetRenderer.sharedMaterials = policy switch
+            EditorGUI.BeginDisabledGroup(!_transferer.IsInputValid());
+            if (GUILayout.Button("実行！", GUILayout.Height(30)))
             {
-                MaterialIndexMapPolicy.ByIndex => prefabMats,
-                MaterialIndexMapPolicy.BySubMeshVertexCount => GetMaterialsReorderedBySubMeshVertexCount(prefabRenderer, targetRenderer),
-                _ => prefabMats
-            };
-            
-            applyCount++;
-        }
-
-        // 2) ターゲット側にだけ存在するメッシュを警告
-        foreach (var kv in targetDict)
-        {
-            string meshName = kv.Key;
-            if (!prefabDict.ContainsKey(meshName))
-            {
-                Debug.LogWarning($"Prefab 側に存在しないメッシュがターゲット側にあります: {meshName}");
-                warnCount++;
+                _transferer.Transfer();
             }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.Space();
         }
-
-        // シーンをダーティにマーク（シーンの場合）
-        if (targetObject.scene.IsValid())
-        {
-            EditorSceneManager.MarkSceneDirty(targetObject.scene);
-        }
-
-        Debug.Log($"Prefab Material Applier: {applyCount} 個のメッシュにマテリアルを適用しました。警告: {warnCount} 件。");
-        EditorUtility.DisplayDialog(
-            "Prefab Material Applier",
-            $"適用完了\n適用メッシュ数: {applyCount}\n警告数: {warnCount}\n詳細は Console を参照してください。",
-            "OK"
-        );
     }
 }
+
+
