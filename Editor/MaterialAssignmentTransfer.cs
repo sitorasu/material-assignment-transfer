@@ -75,7 +75,6 @@ namespace Sitorasu.MaterialAssignmentTransfer
 
         private readonly List<Renderer> _sourceNameConflictRenderers = new();
         private readonly List<Renderer> _targetNameConflictRenderers = new();
-        private readonly List<Renderer> _targetMaterialCountMismatchRenderers = new();
 
         public bool IsInputValid()
         {
@@ -95,10 +94,16 @@ namespace Sitorasu.MaterialAssignmentTransfer
             {
                 Undo.RecordObject(desc.Target, "Material Assignment Transfer");
                 var materialSlotNum = desc.MaterialSlotMap.Count();
-                var targetMaterials = new Material[materialSlotNum];
+                var sourceMaterialNum = desc.Source.sharedMaterials.Count();
+                var targetMaterials = new Material[sourceMaterialNum];
                 for (int i = 0; i < materialSlotNum; i++)
                 {
-                    targetMaterials[i] = desc.Source.sharedMaterials[desc.MaterialSlotMap[i]];
+                    var mappedIndex = desc.MaterialSlotMap[i];
+                    if (mappedIndex < desc.Source.sharedMaterials.Count())
+                    {
+
+                        targetMaterials[i] = desc.Source.sharedMaterials[mappedIndex];
+                    }
                 }
                 desc.Target.sharedMaterials = targetMaterials;
             }
@@ -110,7 +115,6 @@ namespace Sitorasu.MaterialAssignmentTransfer
             _plan.Clear();
             _sourceNameConflictRenderers.Clear();
             _targetNameConflictRenderers.Clear();
-            _targetMaterialCountMismatchRenderers.Clear();
 
             if (!IsInputValid())
             {
@@ -130,15 +134,19 @@ namespace Sitorasu.MaterialAssignmentTransfer
             }
             foreach (var renderer in targetRenderers)
             {
+                // 同じ名前のメッシュがソース側になかったら処理対象外
                 if (!sourceDictionary.TryGetValue(renderer.name, out Renderer sourceRenderer))
                 {
                     continue;
                 }
-                if (renderer.sharedMaterials.Count() != sourceRenderer.sharedMaterials.Count())
+                // サブメッシュの数が一致しなければ処理対象外
+                if (renderer is SkinnedMeshRenderer skinnedRenderer &&
+                    sourceRenderer is SkinnedMeshRenderer sourceSkinnedRenderer &&
+                    skinnedRenderer.sharedMesh.subMeshCount != sourceSkinnedRenderer.sharedMesh.subMeshCount)
                 {
-                    _targetMaterialCountMismatchRenderers.Add(renderer);
                     continue;
                 }
+                // 既に同じ名前のメッシュが処理対象となっていたら処理対象外
                 if (!targetDictionary.TryAdd(renderer.name, renderer))
                 {
                     _targetNameConflictRenderers.Add(renderer);
