@@ -64,8 +64,11 @@ namespace Sitorasu.MaterialAssignmentTransfer
                 );
                 for (int i = 0; i < item.MaterialSlotMap.Count(); i++)
                 {
-                    var oldMaterial = item.Target.sharedMaterials[i];
-                    var newMaterial = item.Source.sharedMaterials[item.MaterialSlotMap[i]];
+                    var oldMaterials = item.Target.sharedMaterials;
+                    var oldMaterial = i < oldMaterials.Count() ? oldMaterials[i] : null;
+                    var newMaterials = item.Source.sharedMaterials;
+                    var mappedIndex = item.MaterialSlotMap[i];
+                    var newMaterial = mappedIndex < newMaterials.Count() ? newMaterials[mappedIndex] : null;
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField($"Slot {i}", GUILayout.Width(50));
                     EditorGUILayout.ObjectField(
