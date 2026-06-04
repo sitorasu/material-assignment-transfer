@@ -23,7 +23,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
 
     record TransferDescription(Renderer Source, Renderer Target, int[] MaterialSlotMap);
 
-    class MaterialAssignmentTransfer
+    class Transferer
     {
         private GameObject _source;
         public GameObject Source

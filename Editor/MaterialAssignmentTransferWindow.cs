@@ -8,7 +8,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
 {
     class MaterialAssignmentTransferWindow : EditorWindow
     {
-        private MaterialAssignmentTransfer _transferer;
+        private Transferer _transferer;
 
         // ログのスクロール位置
         private Vector2 _logScrollPosition;
@@ -21,7 +21,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
 
         private void OnEnable()
         {
-            _transferer = new MaterialAssignmentTransfer();
+            _transferer = new Transferer();
         }
 
         private void OnGUI()
