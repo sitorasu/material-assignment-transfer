@@ -139,17 +139,36 @@ namespace Sitorasu.MaterialAssignmentTransfer
                 {
                     continue;
                 }
-                // サブメッシュの数が一致しなければ処理対象外
-                if (renderer is SkinnedMeshRenderer skinnedRenderer &&
-                    sourceRenderer is SkinnedMeshRenderer sourceSkinnedRenderer &&
-                    skinnedRenderer.sharedMesh.subMeshCount != sourceSkinnedRenderer.sharedMesh.subMeshCount)
+                // 型が一致しなければ対象外
+                if (renderer.GetType() != sourceRenderer.GetType())
                 {
                     continue;
                 }
-                // 既に同じ名前のメッシュが処理対象となっていたら処理対象外
+                // サブメッシュの数が一致しなければ処理対象外
+                if (renderer is SkinnedMeshRenderer skinnedRenderer && skinnedRenderer.sharedMesh.subMeshCount != ((SkinnedMeshRenderer)sourceRenderer).sharedMesh.subMeshCount)
+                {
+                    continue;
+                }
+                // 既に同じ名前のメッシュが処理対象となっていた場合、頂点数が近い方を採用
                 if (!targetDictionary.TryAdd(renderer.name, renderer))
                 {
-                    _targetNameConflictRenderers.Add(renderer);
+                    if (renderer is SkinnedMeshRenderer challenger)
+                    {
+                        var challengerVertexCount = challenger.sharedMesh.vertexCount;
+                        var candidate = targetDictionary[renderer.name];
+                        var candidateVertexCount = ((SkinnedMeshRenderer)candidate).sharedMesh.vertexCount;
+                        var sourceVertexCount = ((SkinnedMeshRenderer)sourceRenderer).sharedMesh.vertexCount;
+                        var candidateDistance = Math.Abs(candidateVertexCount - sourceVertexCount);
+                        var challengerDistance = Math.Abs(challengerVertexCount - sourceVertexCount);
+                        if (challengerDistance < candidateDistance)
+                        {
+                            _targetNameConflictRenderers.Add(renderer);
+                        }
+                    }
+                    else
+                    {
+                        _targetNameConflictRenderers.Add(renderer);
+                    }
                 }
             }
 
