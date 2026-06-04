@@ -55,36 +55,39 @@ namespace Sitorasu.MaterialAssignmentTransfer
 
             EditorGUILayout.LabelField("実行計画", EditorStyles.wordWrappedLabel);
             _logScrollPosition = EditorGUILayout.BeginScrollView(_logScrollPosition);
-            foreach (var item in _transferer.Plan)
+            if (_transferer.Source != null && _transferer.Target != null)
             {
-                EditorGUILayout.ObjectField(
-                    obj: item.Target.gameObject,
-                    objType: typeof(GameObject),
-                    allowSceneObjects: true
-                );
-                for (int i = 0; i < item.MaterialSlotMap.Count(); i++)
+                foreach (var item in _transferer.Plan)
                 {
-                    var oldMaterials = item.Target.sharedMaterials;
-                    var oldMaterial = i < oldMaterials.Count() ? oldMaterials[i] : null;
-                    var newMaterials = item.Source.sharedMaterials;
-                    var mappedIndex = item.MaterialSlotMap[i];
-                    var newMaterial = mappedIndex < newMaterials.Count() ? newMaterials[mappedIndex] : null;
-                    EditorGUILayout.BeginHorizontal();
-                    EditorGUILayout.LabelField($"Slot {i}", GUILayout.Width(50));
                     EditorGUILayout.ObjectField(
-                        obj: oldMaterial,
-                        objType: typeof(Material),
+                        obj: item.Target.gameObject,
+                        objType: typeof(GameObject),
                         allowSceneObjects: true
                     );
-                    EditorGUILayout.LabelField("⇒", GUILayout.Width(20));
-                    EditorGUILayout.ObjectField(
-                        obj: newMaterial,
-                        objType: typeof(Material),
-                        allowSceneObjects: true
-                    );
-                    EditorGUILayout.EndHorizontal();
+                    for (int i = 0; i < item.MaterialSlotMap.Count(); i++)
+                    {
+                        var oldMaterials = item.Target.sharedMaterials;
+                        var oldMaterial = i < oldMaterials.Count() ? oldMaterials[i] : null;
+                        var newMaterials = item.Source.sharedMaterials;
+                        var mappedIndex = item.MaterialSlotMap[i];
+                        var newMaterial = mappedIndex < newMaterials.Count() ? newMaterials[mappedIndex] : null;
+                        EditorGUILayout.BeginHorizontal();
+                        EditorGUILayout.LabelField($"Slot {i}", GUILayout.Width(50));
+                        EditorGUILayout.ObjectField(
+                            obj: oldMaterial,
+                            objType: typeof(Material),
+                            allowSceneObjects: true
+                        );
+                        EditorGUILayout.LabelField("⇒", GUILayout.Width(20));
+                        EditorGUILayout.ObjectField(
+                            obj: newMaterial,
+                            objType: typeof(Material),
+                            allowSceneObjects: true
+                        );
+                        EditorGUILayout.EndHorizontal();
+                    }
+                    EditorGUILayout.Space();
                 }
-                EditorGUILayout.Space();
             }
             EditorGUILayout.EndScrollView();
             EditorGUILayout.Space();
