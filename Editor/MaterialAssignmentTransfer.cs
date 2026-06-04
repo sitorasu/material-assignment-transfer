@@ -67,15 +67,15 @@ namespace Sitorasu.MaterialAssignmentTransfer
             }
         }
 
-        private List<TransferDescription> _plan = new List<TransferDescription>();
+        private readonly List<TransferDescription> _plan = new();
         public IReadOnlyCollection<TransferDescription> Plan
         {
             get => _plan;
         }
 
-        private List<Renderer> _sourceNameConflictRenderers = new List<Renderer>();
-        private List<Renderer> _targetNameConflictRenderers = new List<Renderer>();
-        private List<Renderer> _targetMaterialCountMismatchRenderers = new List<Renderer>();
+        private readonly List<Renderer> _sourceNameConflictRenderers = new();
+        private readonly List<Renderer> _targetNameConflictRenderers = new();
+        private readonly List<Renderer> _targetMaterialCountMismatchRenderers = new();
 
         public bool IsInputValid()
         {
@@ -103,7 +103,6 @@ namespace Sitorasu.MaterialAssignmentTransfer
                 desc.Target.sharedMaterials = targetMaterials;
             }
             Undo.CollapseUndoOperations(undoGroup);
-            // EditorSceneManager.MarkSceneDirty(_target.scene);
         }
 
         private void UpdatePlan()
