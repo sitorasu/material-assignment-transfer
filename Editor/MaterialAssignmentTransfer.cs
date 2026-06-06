@@ -110,7 +110,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
             Undo.CollapseUndoOperations(undoGroup);
         }
 
-        private void UpdatePlan()
+        public void UpdatePlan()
         {
             _plan.Clear();
             _sourceNameConflictRenderers.Clear();
@@ -172,9 +172,9 @@ namespace Sitorasu.MaterialAssignmentTransfer
                 }
             }
 
-            foreach (var (sourceName, sourceRenderer) in sourceDictionary)
+            foreach (var (targetName, targetRenderer) in targetDictionary)
             {
-                var targetRenderer = targetDictionary[sourceName];
+                var sourceRenderer = sourceDictionary[targetName];
                 int[] materialSlotMap = _policy switch
                 {
                     MaterialSlotMapPolicy.ByIndex => Enumerable.Range(0, sourceRenderer.sharedMaterials.Count()).ToArray(),
