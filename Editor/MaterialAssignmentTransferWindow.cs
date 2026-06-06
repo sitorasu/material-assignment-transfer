@@ -84,13 +84,13 @@ namespace Sitorasu.MaterialAssignmentTransfer
                             labelStyle = new GUIStyle(EditorStyles.boldLabel);
                             labelStyle.normal.textColor = Color.green;
                         }
-                        EditorGUILayout.LabelField($"Slot {i}", labelStyle, GUILayout.Width(50));
+                        EditorGUILayout.LabelField($"[{i}]", labelStyle, GUILayout.Width(20));
                         EditorGUILayout.ObjectField(
                             obj: oldMaterial,
                             objType: typeof(Material),
                             allowSceneObjects: true
                         );
-                        EditorGUILayout.LabelField("⇒", GUILayout.Width(20));
+                        EditorGUILayout.LabelField("⇒", GUILayout.Width(15));
                         EditorGUILayout.ObjectField(
                             obj: newMaterial,
                             objType: typeof(Material),
