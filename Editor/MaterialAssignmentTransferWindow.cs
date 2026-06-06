@@ -55,7 +55,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
             EditorGUILayout.Space();
 
             EditorGUILayout.LabelField("実行計画", EditorStyles.wordWrappedLabel);
-            _logScrollPosition = EditorGUILayout.BeginScrollView(_logScrollPosition);
+            _logScrollPosition = EditorGUILayout.BeginScrollView(_logScrollPosition, EditorStyles.helpBox);
             foreach (var item in _transferer.Plan)
             {
                 EditorGUILayout.ObjectField(
