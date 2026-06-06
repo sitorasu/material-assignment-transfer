@@ -13,7 +13,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
         // ログのスクロール位置
         private Vector2 _logScrollPosition;
 
-        [MenuItem("Tools/Material Assignment Transfer")]
+        [MenuItem("Tools/sitorasu's tools/Material Assignment Transfer")]
         private static void ShowWindow()
         {
             GetWindow<MaterialAssignmentTransferWindow>("Material Assignment Transfer");
