@@ -75,7 +75,13 @@ namespace Sitorasu.MaterialAssignmentTransfer
                     var mappedIndex = item.MaterialSlotMap[i];
                     var newMaterial = mappedIndex < newMaterials.Count() ? newMaterials[mappedIndex] : null;
                     EditorGUILayout.BeginHorizontal();
-                    EditorGUILayout.LabelField($"Slot {i}", GUILayout.Width(50));
+                    var labelStyle = EditorStyles.label;
+                    if (oldMaterial != newMaterial)
+                    {
+                        labelStyle = new GUIStyle(EditorStyles.boldLabel);
+                        labelStyle.normal.textColor = Color.green;
+                    }
+                    EditorGUILayout.LabelField($"Slot {i}", labelStyle, GUILayout.Width(50));
                     EditorGUILayout.ObjectField(
                         obj: oldMaterial,
                         objType: typeof(Material),
