@@ -60,53 +60,84 @@ namespace Sitorasu.MaterialAssignmentTransfer
 
             EditorGUILayout.LabelField("実行計画", EditorStyles.wordWrappedLabel);
             _logScrollPosition = EditorGUILayout.BeginScrollView(_logScrollPosition, EditorStyles.helpBox);
-            foreach (var item in _transferer.Plan)
+            var effectivePlan = GetEffectivePlan(_transferer.Plan);
+            if (effectivePlan.Count() > 0)
             {
-                EditorGUILayout.ObjectField(
-                    obj: item.Target.gameObject,
-                    objType: typeof(GameObject),
-                    allowSceneObjects: true
-                );
-                for (int i = 0; i < item.MaterialSlotMap.Count(); i++)
+                foreach (var desc in effectivePlan)
                 {
-                    var oldMaterials = item.Target.sharedMaterials;
-                    var oldMaterial = i < oldMaterials.Count() ? oldMaterials[i] : null;
-                    var newMaterials = item.Source.sharedMaterials;
-                    var mappedIndex = item.MaterialSlotMap[i];
-                    var newMaterial = mappedIndex < newMaterials.Count() ? newMaterials[mappedIndex] : null;
-                    EditorGUILayout.BeginHorizontal();
-                    var labelStyle = EditorStyles.label;
-                    if (oldMaterial != newMaterial)
+                    EditorGUILayout.ObjectField(
+                        obj: desc.Target.gameObject,
+                        objType: typeof(GameObject),
+                        allowSceneObjects: true
+                    );
+                    for (int i = 0; i < desc.MaterialSlotMap.Count(); i++)
                     {
-                        labelStyle = new GUIStyle(EditorStyles.boldLabel);
-                        labelStyle.normal.textColor = Color.green;
+                        var oldMaterials = desc.Target.sharedMaterials;
+                        var oldMaterial = i < oldMaterials.Count() ? oldMaterials[i] : null;
+                        var newMaterials = desc.Source.sharedMaterials;
+                        var mappedIndex = desc.MaterialSlotMap[i];
+                        var newMaterial = mappedIndex < newMaterials.Count() ? newMaterials[mappedIndex] : null;
+                        EditorGUILayout.BeginHorizontal();
+                        var labelStyle = EditorStyles.label;
+                        if (oldMaterial != newMaterial)
+                        {
+                            labelStyle = new GUIStyle(EditorStyles.boldLabel);
+                            labelStyle.normal.textColor = Color.green;
+                        }
+                        EditorGUILayout.LabelField($"Slot {i}", labelStyle, GUILayout.Width(50));
+                        EditorGUILayout.ObjectField(
+                            obj: oldMaterial,
+                            objType: typeof(Material),
+                            allowSceneObjects: true
+                        );
+                        EditorGUILayout.LabelField("⇒", GUILayout.Width(20));
+                        EditorGUILayout.ObjectField(
+                            obj: newMaterial,
+                            objType: typeof(Material),
+                            allowSceneObjects: true
+                        );
+                        EditorGUILayout.EndHorizontal();
                     }
-                    EditorGUILayout.LabelField($"Slot {i}", labelStyle, GUILayout.Width(50));
-                    EditorGUILayout.ObjectField(
-                        obj: oldMaterial,
-                        objType: typeof(Material),
-                        allowSceneObjects: true
-                    );
-                    EditorGUILayout.LabelField("⇒", GUILayout.Width(20));
-                    EditorGUILayout.ObjectField(
-                        obj: newMaterial,
-                        objType: typeof(Material),
-                        allowSceneObjects: true
-                    );
-                    EditorGUILayout.EndHorizontal();
+                    EditorGUILayout.Space();
                 }
-                EditorGUILayout.Space();
             }
+            else if (_transferer.IsInputValid())
+            {
+                EditorGUILayout.LabelField("ターゲットに対して行うべき変更はありません。", EditorStyles.wordWrappedLabel);
+            }
+
             EditorGUILayout.EndScrollView();
             EditorGUILayout.Space();
 
-            EditorGUI.BeginDisabledGroup(!_transferer.IsInputValid());
+            EditorGUI.BeginDisabledGroup(!_transferer.IsInputValid() || effectivePlan.Count() == 0);
             if (GUILayout.Button("実行！", GUILayout.Height(30)))
             {
                 _transferer.Transfer();
             }
             EditorGUI.EndDisabledGroup();
             EditorGUILayout.Space();
+        }
+
+        private static IReadOnlyCollection<TransferDescription> GetEffectivePlan(IReadOnlyCollection<TransferDescription> plan)
+        {
+            var newPlan = new List<TransferDescription>();
+            foreach (var desc in plan)
+            {
+                var targetMaterials = desc.Target.sharedMaterials;
+                var sourceMaterials = desc.Source.sharedMaterials;
+                for (int i = 0; i < desc.MaterialSlotMap.Count(); i++)
+                {
+                    var oldMaterial = i < targetMaterials.Count() ? targetMaterials[i] : null;
+                    var mappedIndex = desc.MaterialSlotMap[i];
+                    var newMaterial = mappedIndex < sourceMaterials.Count() ? sourceMaterials[mappedIndex] : null;
+                    if (oldMaterial != newMaterial)
+                    {
+                        newPlan.Add(desc);
+                        break;
+                    }
+                }
+            }
+            return newPlan;
         }
 
         private void OnObjectChangesPublished(ref ObjectChangeEventStream stream)

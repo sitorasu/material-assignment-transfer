@@ -92,20 +92,16 @@ namespace Sitorasu.MaterialAssignmentTransfer
             int undoGroup = Undo.GetCurrentGroup();
             foreach (var desc in _plan)
             {
-                Undo.RecordObject(desc.Target, "Material Assignment Transfer");
-                var materialSlotNum = desc.MaterialSlotMap.Count();
-                var sourceMaterialNum = desc.Source.sharedMaterials.Count();
-                var targetMaterials = new Material[sourceMaterialNum];
-                for (int i = 0; i < materialSlotNum; i++)
+                var sourceMaterials = desc.Source.sharedMaterials;
+                var newMaterials = new Material[desc.MaterialSlotMap.Count()];
+                for (int i = 0; i < desc.MaterialSlotMap.Count(); i++)
                 {
                     var mappedIndex = desc.MaterialSlotMap[i];
-                    if (mappedIndex < desc.Source.sharedMaterials.Count())
-                    {
-
-                        targetMaterials[i] = desc.Source.sharedMaterials[mappedIndex];
-                    }
+                    var newMaterial = mappedIndex < sourceMaterials.Count() ? sourceMaterials[mappedIndex] : null;
+                    Undo.RecordObject(desc.Target, "Material Assignment Transfer");
+                    newMaterials[i] = newMaterial;
                 }
-                desc.Target.sharedMaterials = targetMaterials;
+                desc.Target.sharedMaterials = newMaterials;
             }
             Undo.CollapseUndoOperations(undoGroup);
         }
@@ -177,7 +173,11 @@ namespace Sitorasu.MaterialAssignmentTransfer
                 var sourceRenderer = sourceDictionary[targetName];
                 int[] materialSlotMap = _policy switch
                 {
-                    MaterialSlotMapPolicy.ByIndex => Enumerable.Range(0, sourceRenderer.sharedMaterials.Count()).ToArray(),
+                    MaterialSlotMapPolicy.ByIndex => Enumerable.Range(0, sourceRenderer switch
+                    {
+                        SkinnedMeshRenderer r => r.sharedMesh.subMeshCount,
+                        _ => sourceRenderer.sharedMaterials.Count()
+                    }).ToArray(),
                     MaterialSlotMapPolicy.BySubMeshVertexCount => GenerateMaterialSlotMapBySubMeshVertexCount(sourceRenderer, targetRenderer),
                     _ => null
                 };
