@@ -87,8 +87,8 @@ namespace Sitorasu.MaterialAssignmentTransfer
             {
                 return;
             }
-            Undo.IncrementCurrentGroup();
-            Undo.SetCurrentGroupName("Material Assignment Transfer");
+            var targets = _plan.Select(desc => desc.Target).Distinct().ToArray();
+            Undo.RecordObjects(targets, "Material Assignment Transfer");
             int undoGroup = Undo.GetCurrentGroup();
             foreach (var desc in _plan)
             {
@@ -98,12 +98,10 @@ namespace Sitorasu.MaterialAssignmentTransfer
                 {
                     var mappedIndex = desc.MaterialSlotMap[i];
                     var newMaterial = mappedIndex < sourceMaterials.Count() ? sourceMaterials[mappedIndex] : null;
-                    Undo.RecordObject(desc.Target, "Material Assignment Transfer");
                     newMaterials[i] = newMaterial;
                 }
                 desc.Target.sharedMaterials = newMaterials;
             }
-            Undo.CollapseUndoOperations(undoGroup);
         }
 
         public void UpdatePlan()
