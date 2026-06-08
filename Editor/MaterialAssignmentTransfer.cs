@@ -117,71 +117,93 @@ namespace Sitorasu.MaterialAssignmentTransfer
 
             var sourceRenderers = _source.GetComponentsInChildren<Renderer>(includeInactive: true);
             var targetRenderers = _target.GetComponentsInChildren<Renderer>(includeInactive: true);
-            var sourceDictionary = new Dictionary<string, Renderer>();
-            var targetDictionary = new Dictionary<string, Renderer>();
-            foreach (var renderer in sourceRenderers)
+            var sourceGroups = sourceRenderers.GroupBy(renderer => renderer.name).ToDictionary(group => group.Key, group => group.ToList());
+            var targetGroups = targetRenderers.GroupBy(renderer => renderer.name).ToDictionary(group => group.Key, group => group.ToList());
+
+            foreach (var (rendererName, targetGroup) in targetGroups)
             {
-                if (!sourceDictionary.TryAdd(renderer.name, renderer))
+                if (!sourceGroups.TryGetValue(rendererName, out var sourceGroup))
                 {
-                    _sourceNameConflictRenderers.Add(renderer);
+                    continue;
+                }
+
+                var rendererPairs = GenerateRendererPairs(sourceGroup, targetGroup);
+
+                foreach (var (sourceRenderer, targetRenderer) in rendererPairs)
+                {
+                    int[] materialSlotMap = _policy switch
+                    {
+                        MaterialSlotMapPolicy.ByIndex => Enumerable.Range(0, sourceRenderer switch
+                        {
+                            SkinnedMeshRenderer r => r.sharedMesh.subMeshCount,
+                            _ => sourceRenderer.sharedMaterials.Count()
+                        }).ToArray(),
+                        MaterialSlotMapPolicy.BySubMeshVertexCount => GenerateMaterialSlotMapBySubMeshVertexCount(sourceRenderer, targetRenderer),
+                        _ => null
+                    };
+                    Debug.Assert(materialSlotMap != null, "Unknown MaterialSlotPolicy");
+                    _plan.Add(new TransferDescription(sourceRenderer, targetRenderer, materialSlotMap));
                 }
             }
-            foreach (var renderer in targetRenderers)
+        }
+
+        private static IReadOnlyCollection<(Renderer Source, Renderer Target)> GenerateRendererPairs(IReadOnlyList<Renderer> sourceRenderers, IReadOnlyList<Renderer> targetRenderers)
+        {
+            var pairs = new List<(Renderer Source, Renderer Target)>();
+            var candidates = new List<(Renderer Source, Renderer Target, int SourceIndex, int TargetIndex, int Distance)>();
+
+            for (int sourceIndex = 0; sourceIndex < sourceRenderers.Count; sourceIndex++)
             {
-                // 同じ名前のメッシュがソース側になかったら処理対象外
-                if (!sourceDictionary.TryGetValue(renderer.name, out Renderer sourceRenderer))
+                for (int targetIndex = 0; targetIndex < targetRenderers.Count; targetIndex++)
                 {
-                    continue;
-                }
-                // 型が一致しなければ対象外
-                if (renderer.GetType() != sourceRenderer.GetType())
-                {
-                    continue;
-                }
-                // サブメッシュの数が一致しなければ処理対象外
-                if (renderer is SkinnedMeshRenderer skinnedRenderer && skinnedRenderer.sharedMesh.subMeshCount != ((SkinnedMeshRenderer)sourceRenderer).sharedMesh.subMeshCount)
-                {
-                    continue;
-                }
-                // 既に同じ名前のメッシュが処理対象となっていた場合、頂点数が近い方を採用
-                if (!targetDictionary.TryAdd(renderer.name, renderer))
-                {
-                    if (renderer is SkinnedMeshRenderer challenger)
+                    var sourceRenderer = sourceRenderers[sourceIndex];
+                    var targetRenderer = targetRenderers[targetIndex];
+                    if (!CanTransfer(sourceRenderer, targetRenderer))
                     {
-                        var challengerVertexCount = challenger.sharedMesh.vertexCount;
-                        var candidate = targetDictionary[renderer.name];
-                        var candidateVertexCount = ((SkinnedMeshRenderer)candidate).sharedMesh.vertexCount;
-                        var sourceVertexCount = ((SkinnedMeshRenderer)sourceRenderer).sharedMesh.vertexCount;
-                        var candidateDistance = Math.Abs(candidateVertexCount - sourceVertexCount);
-                        var challengerDistance = Math.Abs(challengerVertexCount - sourceVertexCount);
-                        if (challengerDistance < candidateDistance)
-                        {
-                            _targetNameConflictRenderers.Add(renderer);
-                        }
+                        continue;
                     }
-                    else
-                    {
-                        _targetNameConflictRenderers.Add(renderer);
-                    }
+
+                    candidates.Add((sourceRenderer, targetRenderer, sourceIndex, targetIndex, GetRendererDistance(sourceRenderer, targetRenderer)));
                 }
             }
 
-            foreach (var (targetName, targetRenderer) in targetDictionary)
+            var used = new HashSet<Renderer>();
+            foreach (var candidate in candidates.OrderBy(candidate => candidate.Distance).ThenBy(candidate => candidate.SourceIndex).ThenBy(candidate => candidate.TargetIndex))
             {
-                var sourceRenderer = sourceDictionary[targetName];
-                int[] materialSlotMap = _policy switch
+                if (!used.Contains(candidate.Source) && !used.Contains(candidate.Target))
                 {
-                    MaterialSlotMapPolicy.ByIndex => Enumerable.Range(0, sourceRenderer switch
-                    {
-                        SkinnedMeshRenderer r => r.sharedMesh.subMeshCount,
-                        _ => sourceRenderer.sharedMaterials.Count()
-                    }).ToArray(),
-                    MaterialSlotMapPolicy.BySubMeshVertexCount => GenerateMaterialSlotMapBySubMeshVertexCount(sourceRenderer, targetRenderer),
-                    _ => null
-                };
-                Debug.Assert(materialSlotMap != null, "Unknown MaterialSlotPolicy");
-                _plan.Add(new TransferDescription(sourceRenderer, targetRenderer, materialSlotMap));
+                    pairs.Add((candidate.Source, candidate.Target));
+                    used.Add(candidate.Source);
+                    used.Add(candidate.Target);
+                }
             }
+
+            return pairs;
+        }
+
+        private static bool CanTransfer(Renderer source, Renderer target)
+        {
+            if (target.GetType() != source.GetType())
+            {
+                return false;
+            }
+
+            if (source is SkinnedMeshRenderer sourceSkinned && target is SkinnedMeshRenderer targetSkinned)
+            {
+                return sourceSkinned.sharedMesh.subMeshCount == targetSkinned.sharedMesh.subMeshCount;
+            }
+
+            return true;
+        }
+
+        private static int GetRendererDistance(Renderer source, Renderer target)
+        {
+            if (source is SkinnedMeshRenderer sourceSkinned && target is SkinnedMeshRenderer targetSkinned)
+            {
+                return Math.Abs(sourceSkinned.sharedMesh.vertexCount - targetSkinned.sharedMesh.vertexCount);
+            }
+
+            return 0;
         }
 
         private int[] GenerateMaterialSlotMapBySubMeshVertexCount(Renderer source, Renderer target)
