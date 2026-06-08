@@ -68,13 +68,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
         }
 
         private readonly List<TransferDescription> _plan = new();
-        public IReadOnlyCollection<TransferDescription> Plan
-        {
-            get => _plan;
-        }
-
-        private readonly List<Renderer> _sourceNameConflictRenderers = new();
-        private readonly List<Renderer> _targetNameConflictRenderers = new();
+        public IReadOnlyCollection<TransferDescription> Plan => _plan;
 
         public bool IsInputValid()
         {
@@ -106,8 +100,6 @@ namespace Sitorasu.MaterialAssignmentTransfer
         public void UpdatePlan()
         {
             _plan.Clear();
-            _sourceNameConflictRenderers.Clear();
-            _targetNameConflictRenderers.Clear();
 
             if (!IsInputValid())
             {

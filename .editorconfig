@@ -1,0 +1,6 @@
+[*.cs]
+dotnet_analyzer_diagnostic.severity = warning
+dotnet_diagnostic.IDE0008.severity = default
+dotnet_diagnostic.IDE0040.severity = default
+dotnet_diagnostic.IDE0046.severity = default
+dotnet_diagnostic.IDE0058.severity = default
