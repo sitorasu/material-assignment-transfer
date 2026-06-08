@@ -206,7 +206,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
             return 0;
         }
 
-        private int[] GenerateMaterialSlotMapBySubMeshVertexCount(Renderer source, Renderer target)
+        private static int[] GenerateMaterialSlotMapBySubMeshVertexCount(Renderer source, Renderer target)
         {
             if (source is SkinnedMeshRenderer sourceSkinned && target is SkinnedMeshRenderer targetSkinned)
             {
