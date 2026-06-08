@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -8,7 +7,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
 {
     class MaterialAssignmentTransferWindow : EditorWindow
     {
-        private Transferer _transferer = new();
+        private readonly Transferer _transferer = new();
 
         // ログのスクロール位置
         private Vector2 _logScrollPosition;
