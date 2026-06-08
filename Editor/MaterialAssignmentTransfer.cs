@@ -89,7 +89,6 @@ namespace Sitorasu.MaterialAssignmentTransfer
             }
             var targets = _plan.Select(desc => desc.Target).Distinct().ToArray();
             Undo.RecordObjects(targets, "Material Assignment Transfer");
-            int undoGroup = Undo.GetCurrentGroup();
             foreach (var desc in _plan)
             {
                 var sourceMaterials = desc.Source.sharedMaterials;
