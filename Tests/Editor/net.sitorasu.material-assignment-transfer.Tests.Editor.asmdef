@@ -1,0 +1,18 @@
+{
+    "name": "net.sitorasu.material-assignment-transfer.Tests.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:56cd7b148f0a8da49afde95c7daed5a9"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
