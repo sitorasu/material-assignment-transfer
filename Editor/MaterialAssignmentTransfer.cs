@@ -4,6 +4,9 @@ using System.ComponentModel;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("net.sitorasu.material-assignment-transfer.Tests.Editor")]
 
 namespace System.Runtime.CompilerServices
 {
