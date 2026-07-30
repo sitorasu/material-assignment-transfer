@@ -42,6 +42,26 @@ namespace Sitorasu.MaterialAssignmentTransfer
             Assert.That(targetRenderer.sharedMaterials, Is.EqualTo(sourceRenderer.sharedMaterials));
         }
 
+        [Test]
+        public void MaterialSlotMapBySubMeshVertexCountTest()
+        {
+            var sourceRenderer = CreateSkinnedMeshRenderer("Test1", 3, 6, 9);
+            var targetRenderer = CreateSkinnedMeshRenderer("Test1", 90, 30, 60);
+            var transferer = new Transferer()
+            {
+                Source = sourceRenderer.gameObject,
+                Target = targetRenderer.gameObject,
+                Policy = MaterialSlotMapPolicy.BySubMeshVertexCount
+            };
+            transferer.Transfer();
+            Material[] expectedMaterials = {
+                sourceRenderer.sharedMaterials[2], // 9 vertices
+                sourceRenderer.sharedMaterials[0], // 3 vertices
+                sourceRenderer.sharedMaterials[1], // 6 vertices
+            };
+            Assert.That(targetRenderer.sharedMaterials, Is.EqualTo(expectedMaterials));
+        }
+
         private record SubMeshSpec(int VertexCount, Material Material);
 
         private SkinnedMeshRenderer CreateSkinnedMeshRenderer(
@@ -49,6 +69,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
             params SubMeshSpec[] subMeshSpecs
         )
         {
+            Assert.That(subMeshSpecs, Is.All.Matches<SubMeshSpec>(spec => spec.VertexCount % 3 == 0));
             var subMeshCount = subMeshSpecs.Length;
             var totalVertexCount = subMeshSpecs.Sum(spec => spec.VertexCount);
             var materials = subMeshSpecs.Select(spec => spec.Material).ToArray();
@@ -63,7 +84,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
             for (int i = 0; i < subMeshCount; i++)
             {
                 int vertexCount = subMeshSpecs[i].VertexCount;
-                int[] triangles = { 0, 1, 2 };
+                int[] triangles = Enumerable.Range(0, vertexCount).ToArray();
                 mesh.SetTriangles(triangles, i, calculateBounds: false);
             }
 
