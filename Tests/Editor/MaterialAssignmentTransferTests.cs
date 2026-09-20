@@ -86,7 +86,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
         }
 
         [Test]
-        public void SubMeshVertexCountMatchingTest()
+        public void SubMeshCountMatchingTest()
         {
             var source = CreateRendererGroup(
                 "Source",
@@ -107,6 +107,8 @@ namespace Sitorasu.MaterialAssignmentTransfer
             Assert.That(target.Renderers[0].sharedMaterials, Is.EqualTo(source.Renderers[1].sharedMaterials));
             Assert.That(target.Renderers[1].sharedMaterials, Is.EqualTo(source.Renderers[0].sharedMaterials));
         }
+
+
 
         private enum RendererKind
         {
