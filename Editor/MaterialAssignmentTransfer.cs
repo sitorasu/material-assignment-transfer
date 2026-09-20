@@ -175,6 +175,20 @@ namespace Sitorasu.MaterialAssignmentTransfer
             return pairs;
         }
 
+        private static Mesh GetSharedMesh(Renderer renderer)
+        {
+            if (renderer is SkinnedMeshRenderer skinnedMeshRenderer)
+            {
+                return skinnedMeshRenderer.sharedMesh;
+            }
+            if (renderer is MeshRenderer meshRenderer)
+            {
+                return meshRenderer.GetComponent<MeshFilter>().sharedMesh;
+            }
+            Debug.Assert(false, "Unsupported renderer type: " + renderer.GetType().Name);
+            return null;
+        }
+
         private static bool CanTransfer(Renderer source, Renderer target)
         {
             if (target.GetType() != source.GetType())
@@ -182,53 +196,38 @@ namespace Sitorasu.MaterialAssignmentTransfer
                 return false;
             }
 
-            if (source is SkinnedMeshRenderer sourceSkinned && target is SkinnedMeshRenderer targetSkinned)
-            {
-                return sourceSkinned.sharedMesh.subMeshCount == targetSkinned.sharedMesh.subMeshCount;
-            }
-
-            return true;
+            return GetSharedMesh(source).subMeshCount == GetSharedMesh(target).subMeshCount;
         }
 
         private static int GetRendererDistance(Renderer source, Renderer target)
         {
-            if (source is SkinnedMeshRenderer sourceSkinned && target is SkinnedMeshRenderer targetSkinned)
-            {
-                return Math.Abs(sourceSkinned.sharedMesh.vertexCount - targetSkinned.sharedMesh.vertexCount);
-            }
-
-            return 0;
+            return Math.Abs(GetSharedMesh(source).vertexCount - GetSharedMesh(target).vertexCount);
         }
 
         private static int[] GenerateMaterialSlotMapBySubMeshVertexCount(Renderer source, Renderer target)
         {
-            if (source is SkinnedMeshRenderer sourceSkinned && target is SkinnedMeshRenderer targetSkinned)
-            {
-                // ①ソース側のメッシュについて、サブメッシュの番号→頂点数の順位 の対応を計算
-                var subMeshCount = sourceSkinned.sharedMesh.subMeshCount;
-                var sourceSubMeshVertexCounts = Enumerable.Range(0, subMeshCount).Select(i => sourceSkinned.sharedMesh.GetSubMesh(i).vertexCount).ToArray();
-                var sourceIndexToRank = Enumerable.Range(0, subMeshCount).ToArray();
-                Array.Sort(sourceSubMeshVertexCounts, sourceIndexToRank);
+            // ①ソース側のメッシュについて、サブメッシュの番号→頂点数の順位 の対応を計算
+            var sourceMesh = GetSharedMesh(source);
+            var subMeshCount = sourceMesh.subMeshCount;
+            var sourceSubMeshVertexCounts = Enumerable.Range(0, subMeshCount).Select(i => sourceMesh.GetSubMesh(i).vertexCount).ToArray();
+            var sourceIndexToRank = Enumerable.Range(0, subMeshCount).ToArray();
+            Array.Sort(sourceSubMeshVertexCounts, sourceIndexToRank);
 
-                // ②ターゲット側のメッシュについて、頂点数の順位→サブメッシュの番号 の対応を計算
-                Debug.Assert(subMeshCount == targetSkinned.sharedMesh.subMeshCount);
-                var targetSubMeshVertexCounts = Enumerable.Range(0, subMeshCount).Select(i => targetSkinned.sharedMesh.GetSubMesh(i).vertexCount).ToArray();
-                var targetIndexToRank = Enumerable.Range(0, subMeshCount).ToArray();
-                Array.Sort(targetSubMeshVertexCounts, targetIndexToRank);
-                var targetRankToIndex = new int[subMeshCount];
-                for (int i = 0; i < subMeshCount; i++)
-                {
-                    targetRankToIndex[targetIndexToRank[i]] = i;
-                }
-
-                // ①と②を合成
-                var materialSlotMap = Enumerable.Range(0, subMeshCount).Select(i => targetRankToIndex[sourceIndexToRank[i]]).ToArray();
-                return materialSlotMap;
-            }
-            else
+            // ②ターゲット側のメッシュについて、頂点数の順位→サブメッシュの番号 の対応を計算
+            var targetMesh = GetSharedMesh(target);
+            Debug.Assert(subMeshCount == targetMesh.subMeshCount);
+            var targetSubMeshVertexCounts = Enumerable.Range(0, subMeshCount).Select(i => targetMesh.GetSubMesh(i).vertexCount).ToArray();
+            var targetIndexToRank = Enumerable.Range(0, subMeshCount).ToArray();
+            Array.Sort(targetSubMeshVertexCounts, targetIndexToRank);
+            var targetRankToIndex = new int[subMeshCount];
+            for (int i = 0; i < subMeshCount; i++)
             {
-                return Enumerable.Range(0, source.sharedMaterials.Count()).ToArray();
+                targetRankToIndex[targetIndexToRank[i]] = i;
             }
+
+            // ①と②を合成
+            var materialSlotMap = Enumerable.Range(0, subMeshCount).Select(i => targetRankToIndex[sourceIndexToRank[i]]).ToArray();
+            return materialSlotMap;
         }
     }
 }
