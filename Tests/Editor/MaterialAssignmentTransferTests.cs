@@ -49,31 +49,35 @@ namespace Sitorasu.MaterialAssignmentTransfer
             return mesh;
         }
 
-        private MeshRenderer CreateMeshRenderer(
+        private Renderer CreateRenderer(
             string name,
+            RendererKind kind,
             params int[] subMeshVertexCounts
         )
         {
             var gameObject = Track(new GameObject(name));
-            var renderer = gameObject.AddComponent<MeshRenderer>();
-            var filter = gameObject.AddComponent<MeshFilter>();
             var mesh = CreateMesh(name + "_Mesh", subMeshVertexCounts);
-            filter.sharedMesh = mesh;
-            renderer.sharedMaterials = subMeshVertexCounts.Select(_ => Track(new Material(Shader.Find("Standard")))).ToArray();
-            return renderer;
-        }
-
-        private SkinnedMeshRenderer CreateSkinnedMeshRenderer(
-            string name,
-            params int[] subMeshVertexCounts
-        )
-        {
-            var gameObject = Track(new GameObject(name));
-            var renderer = gameObject.AddComponent<SkinnedMeshRenderer>();
-            var mesh = CreateMesh(name + "_Mesh", subMeshVertexCounts);
-            renderer.sharedMesh = mesh;
-            renderer.sharedMaterials = subMeshVertexCounts.Select(_ => Track(new Material(Shader.Find("Standard")))).ToArray();
-            return renderer;
+            switch (kind)
+            {
+                case RendererKind.Mesh:
+                    {
+                        var renderer = gameObject.AddComponent<MeshRenderer>();
+                        var filter = gameObject.AddComponent<MeshFilter>();
+                        filter.sharedMesh = mesh;
+                        renderer.sharedMaterials = subMeshVertexCounts.Select(_ => Track(new Material(Shader.Find("Standard")))).ToArray();
+                        return renderer;
+                    }
+                case RendererKind.SkinnedMesh:
+                    {
+                        var renderer = gameObject.AddComponent<SkinnedMeshRenderer>();
+                        renderer.sharedMesh = mesh;
+                        renderer.sharedMaterials = subMeshVertexCounts.Select(_ => Track(new Material(Shader.Find("Standard")))).ToArray();
+                        return renderer;
+                    }
+                default:
+                    Assert.Fail("Unsupported renderer kind: " + kind);
+                    return null;
+            }
         }
 
         private RendererGroup CreateRendererGroup(string rootName, params RendererSpec[] rendererSpecs)
@@ -82,13 +86,7 @@ namespace Sitorasu.MaterialAssignmentTransfer
             var rootGameObject = Track(new GameObject(rootName));
             foreach (var spec in rendererSpecs)
             {
-                Renderer renderer = spec.Kind switch
-                {
-                    RendererKind.SkinnedMesh => CreateSkinnedMeshRenderer(spec.Name, spec.SubMeshVertexCounts),
-                    RendererKind.Mesh => CreateMeshRenderer(spec.Name, spec.SubMeshVertexCounts),
-                    _ => null
-                };
-                Assert.That(renderer, Is.Not.Null);
+                Renderer renderer = CreateRenderer(spec.Name, spec.Kind, spec.SubMeshVertexCounts);
                 renderer.transform.SetParent(rootGameObject.transform, false);
                 renderers.Add(renderer);
             }
@@ -110,8 +108,8 @@ namespace Sitorasu.MaterialAssignmentTransfer
         [Test]
         public void MaterialSlotMapByIndexTest()
         {
-            var sourceRenderer = CreateSkinnedMeshRenderer("Test", 3, 3, 3);
-            var targetRenderer = CreateSkinnedMeshRenderer("Test", 3, 3, 3);
+            var sourceRenderer = CreateRenderer("Test", RendererKind.SkinnedMesh, 3, 3, 3);
+            var targetRenderer = CreateRenderer("Test", RendererKind.SkinnedMesh, 3, 3, 3);
             var transferer = new Transferer()
             {
                 Source = sourceRenderer.gameObject,
@@ -124,8 +122,8 @@ namespace Sitorasu.MaterialAssignmentTransfer
         [Test]
         public void MaterialSlotMapBySubMeshVertexCountTest()
         {
-            var sourceRenderer = CreateSkinnedMeshRenderer("Test1", 3, 6, 9);
-            var targetRenderer = CreateSkinnedMeshRenderer("Test1", 90, 30, 60);
+            var sourceRenderer = CreateRenderer("Test1", RendererKind.SkinnedMesh, 3, 6, 9);
+            var targetRenderer = CreateRenderer("Test1", RendererKind.SkinnedMesh, 90, 30, 60);
             var transferer = new Transferer()
             {
                 Source = sourceRenderer.gameObject,
