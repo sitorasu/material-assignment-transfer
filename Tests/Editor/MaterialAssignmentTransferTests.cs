@@ -108,7 +108,28 @@ namespace Sitorasu.MaterialAssignmentTransfer
             Assert.That(target.Renderers[1].sharedMaterials, Is.EqualTo(source.Renderers[0].sharedMaterials));
         }
 
-
+        [Test]
+        public void VertexCountMatchingTest()
+        {
+            var source = CreateRendererGroup(
+                "Source",
+                new RendererSpec("Skinned", RendererKind.SkinnedMesh, new[] { 3, 6, 9 }),
+                new RendererSpec("Skinned", RendererKind.SkinnedMesh, new[] { 30, 60, 90 })
+            );
+            var target = CreateRendererGroup(
+                "Target",
+                new RendererSpec("Skinned", RendererKind.SkinnedMesh, new[] { 30, 60, 90 }),
+                new RendererSpec("Skinned", RendererKind.SkinnedMesh, new[] { 3, 6, 9 })
+            );
+            var transferer = new Transferer()
+            {
+                Source = source.Root,
+                Target = target.Root
+            };
+            transferer.Transfer();
+            Assert.That(target.Renderers[0].sharedMaterials, Is.EqualTo(source.Renderers[1].sharedMaterials));
+            Assert.That(target.Renderers[1].sharedMaterials, Is.EqualTo(source.Renderers[0].sharedMaterials));
+        }
 
         private enum RendererKind
         {
