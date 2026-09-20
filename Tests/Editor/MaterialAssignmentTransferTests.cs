@@ -62,45 +62,106 @@ namespace Sitorasu.MaterialAssignmentTransfer
             Assert.That(targetRenderer.sharedMaterials, Is.EqualTo(expectedMaterials));
         }
 
-        private record SubMeshSpec(int VertexCount, Material Material);
-
-        private SkinnedMeshRenderer CreateSkinnedMeshRenderer(
-            string name,
-            params SubMeshSpec[] subMeshSpecs
-        )
+        [Test]
+        public void RendererTypeMatchingTest()
         {
-            Assert.That(subMeshSpecs, Is.All.Matches<SubMeshSpec>(spec => spec.VertexCount % 3 == 0));
-            var subMeshCount = subMeshSpecs.Length;
-            var totalVertexCount = subMeshSpecs.Sum(spec => spec.VertexCount);
-            var materials = subMeshSpecs.Select(spec => spec.Material).ToArray();
+            var source = CreateRendererGroup(
+                "Source",
+                new RendererSpec("Skinned", RendererKind.SkinnedMesh, new[] { 3, 6, 9 }),
+                new RendererSpec("Mesh", RendererKind.Mesh, new[] { 3, 6, 9 })
+            );
+            var target = CreateRendererGroup(
+                "Target",
+                new RendererSpec("Mesh", RendererKind.Mesh, new[] { 3, 6, 9 }),
+                new RendererSpec("Skinned", RendererKind.SkinnedMesh, new[] { 3, 6, 9 })
+            );
+            var transferer = new Transferer()
+            {
+                Source = source.Root,
+                Target = target.Root
+            };
+            transferer.Transfer();
+            Assert.That(target.Renderers[0].sharedMaterials, Is.EqualTo(source.Renderers[1].sharedMaterials));
+            Assert.That(target.Renderers[1].sharedMaterials, Is.EqualTo(source.Renderers[0].sharedMaterials));
+        }
+
+        private enum RendererKind
+        {
+            SkinnedMesh,
+            Mesh
+        }
+
+        private record RendererSpec(string Name, RendererKind Kind, int[] SubMeshVertexCounts);
+
+        private record RendererGroup(GameObject Root, IReadOnlyList<Renderer> Renderers);
+
+        private Mesh CreateMesh(string name, params int[] subMeshVertexCounts)
+        {
+            Assert.That(subMeshVertexCounts, Is.All.Matches<int>(count => count % 3 == 0));
+            var subMeshCount = subMeshVertexCounts.Length;
+            var totalVertexCount = subMeshVertexCounts.Sum();
 
             var mesh = Track(new Mesh
             {
-                name = name + "_Mesh",
+                name = name,
                 vertices = new Vector3[totalVertexCount],
                 subMeshCount = subMeshCount
             });
 
             for (int i = 0; i < subMeshCount; i++)
             {
-                int vertexCount = subMeshSpecs[i].VertexCount;
+                int vertexCount = subMeshVertexCounts[i];
                 int[] triangles = Enumerable.Range(0, vertexCount).ToArray();
                 mesh.SetTriangles(triangles, i, calculateBounds: false);
             }
 
+            return mesh;
+        }
+
+        private MeshRenderer CreateMeshRenderer(
+            string name,
+            params int[] subMeshVertexCounts
+        )
+        {
             var gameObject = Track(new GameObject(name));
-            var renderer = gameObject.AddComponent<SkinnedMeshRenderer>();
-
-            renderer.sharedMesh = mesh;
-            renderer.sharedMaterials = materials;
-
+            var renderer = gameObject.AddComponent<MeshRenderer>();
+            var filter = gameObject.AddComponent<MeshFilter>();
+            var mesh = CreateMesh(name + "_Mesh", subMeshVertexCounts);
+            filter.sharedMesh = mesh;
+            renderer.sharedMaterials = subMeshVertexCounts.Select(_ => Track(new Material(Shader.Find("Standard")))).ToArray();
             return renderer;
         }
 
-        private SkinnedMeshRenderer CreateSkinnedMeshRenderer(string name, params int[] subMeshVertexCounts)
+        private SkinnedMeshRenderer CreateSkinnedMeshRenderer(
+            string name,
+            params int[] subMeshVertexCounts
+        )
         {
-            var subMeshSpecs = subMeshVertexCounts.Select(vertexCount => new SubMeshSpec(vertexCount, Track(new Material(Shader.Find("Standard"))))).ToArray();
-            return CreateSkinnedMeshRenderer(name, subMeshSpecs);
+            var gameObject = Track(new GameObject(name));
+            var renderer = gameObject.AddComponent<SkinnedMeshRenderer>();
+            var mesh = CreateMesh(name + "_Mesh", subMeshVertexCounts);
+            renderer.sharedMesh = mesh;
+            renderer.sharedMaterials = subMeshVertexCounts.Select(_ => Track(new Material(Shader.Find("Standard")))).ToArray();
+            return renderer;
+        }
+
+        private RendererGroup CreateRendererGroup(string rootName, params RendererSpec[] rendererSpecs)
+        {
+            var renderers = new List<Renderer>();
+            var rootGameObject = Track(new GameObject(rootName));
+            foreach (var spec in rendererSpecs)
+            {
+                Renderer renderer = spec.Kind switch
+                {
+                    RendererKind.SkinnedMesh => CreateSkinnedMeshRenderer(spec.Name, spec.SubMeshVertexCounts),
+                    RendererKind.Mesh => CreateMeshRenderer(spec.Name, spec.SubMeshVertexCounts),
+                    _ => null
+                };
+                Assert.That(renderer, Is.Not.Null);
+                renderer.transform.SetParent(rootGameObject.transform, false);
+                renderers.Add(renderer);
+            }
+            return new RendererGroup(rootGameObject, renderers);
         }
     }
 }
