@@ -1,6 +1,6 @@
 # Material Assignment Transfer
 
-[VCCに追加](https://sitorasu.github.io/vpm-repos/)
+[VCCに追加](https://sitorasu.github.io/vpm-repos/) | [unitypackageのダウンロード](https://github.com/sitorasu/material-assignment-transfer/releases)
 
 <img src="media~/thumbnail_trim.png" width="50%"/>
 
