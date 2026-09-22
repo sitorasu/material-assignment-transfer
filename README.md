@@ -28,6 +28,8 @@ Material Assignment Transferはそんなときに役に立つツールです。
 
 動画でも手順を確認できます。
 
+https://github.com/user-attachments/assets/3dcc15bc-a8e1-43a4-8a30-14af76160d33
+
 例として[HeartAttack_official](https://momijinokaede.booth.pm/)様の[Teddy Syndrome](https://momijinokaede.booth.pm/items/8127985)を使用させていただきました。
 
 ## 類似ツールとの違い
