@@ -1,12 +1,12 @@
 # Material Assignment Transfer
 
-[VCCに追加]()
+[VCCに追加](https://sitorasu.github.io/vpm-repos/)
 
 <img src="media~/thumbnail_trim.png" width="50%"/>
 
-同じ名前のメッシュのマテリアル割り当てを一括でコピーするツールです。主にVRChatのアバター改変や衣装製作で役に立ちます。
+同じ名前のメッシュのマテリアル割り当てを一括でコピーするUnityエディタ拡張です。主にVRChatのアバター改変や衣装製作で役に立ちます。
 
-※マテリアル**割り当て**をコピーする（マテリアルの差し替えを自動化する）ツールです。マテリアル自体のコピーや変更は行いません。
+※マテリアル**割り当て**をコピーする（マテリアルの差し替えを自動化する）ツールです。マテリアル自体の複製やプロパティ変更は行いません。
 
 ## こんな経験はないでしょうか？
 
@@ -20,11 +20,11 @@ Material Assignment Transferはそんなときに役に立つツールです。
 
 ## 使い方
 
-1. Tools > sitorasu's tools > Material Assignment Transfer を開きます。
+1. メニューバーから Tools > sitorasu's tools > Material Assignment Transfer を開きます。
 1. コピー元の衣装を指定します。
 1. ターゲットの衣装を指定します。
-1. 実行計画を確認します。緑のマテリアルが実行前後の差分です。
-1. 実行ボタンを押します。ターゲットのマテリアルが差し替えられます。
+1. 実行計画を確認します（緑のマテリアルが実行前後の差分です）。
+1. 実行ボタンを押すと、ターゲットのマテリアルが差し替えられます。
 
 動画でも手順を確認できます。
 
@@ -51,6 +51,8 @@ https://github.com/user-attachments/assets/3dcc15bc-a8e1-43a4-8a30-14af76160d33
 
 リリースの仕方
 
-1. `package.json`の`version`を更新する。
+1. `package.json`の`version`を更新する。[セマンティック バージョニング](https://semver.org/lang/ja/)に従う。
 1. 更新後のバージョンと同じ文字列（vプレフィックスは不要）のタグをリリース用のコミットに付ける。
-1. GitHub Actionsの`Build unitypackage`ワークフローを開始する。
+1. GitHub ActionsのBuild unitypackageワークフローを流す。
+1. ビルドされたパッケージが添付されたドラフトがReleasesに作成されるので、必要に応じて編集して公開する。
+1. [sitorasu/vpm-repos](https://github.com/sitorasu/vpm-repos)のBuild Repo Listingワークフローを流す。
