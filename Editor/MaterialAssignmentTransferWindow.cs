@@ -122,6 +122,11 @@ namespace Sitorasu.MaterialAssignmentTransfer
             var newPlan = new List<TransferDescription>();
             foreach (var desc in plan)
             {
+                // Undoでオブジェクトが破棄された直後は、UpdatePlanが呼ばれるまでの間_planに破棄済み参照が残ることがある
+                if (desc.Target == null || desc.Source == null)
+                {
+                    continue;
+                }
                 var targetMaterials = desc.Target.sharedMaterials;
                 var sourceMaterials = desc.Source.sharedMaterials;
                 for (int i = 0; i < desc.MaterialSlotMap.Count(); i++)
